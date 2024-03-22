@@ -1,89 +1,75 @@
-import io
-import math
 import tkinter as tk
-import tkinter.messagebox as messagebox
-from tkinter import ttk
-
+import geopy.geocoders as geocoders
 import requests
-from PIL import Image, ImageTk
-from geopy.geocoders import Nominatim
+from tkintermapview import TkinterMapView
+from geopy.exc import GeocoderUnavailable
 
 
 def search_location():
-    messagebox.showinfo("Promień", f"Wybrano promień {slider.get()} kilometrów")
-    distance = int(slider.get())
-    g = Nominatim(user_agent="myGeocoder")
-    location = g.geocode(search_entry.get())
-    if location is not None:
-        lat, lon = location.latitude, location.longitude
-        current_lat, current_lon = get_current_location()
-        map_data = get_map_data(lat, lon, distance, current_lat, current_lon)
-        if map_data is not None:
-            map_image = Image.open(io.BytesIO(map_data))
-            map_photo = ImageTk.PhotoImage(map_image)
-            map_canvas.delete("all")
-            map_canvas.create_image(0, 0, image=map_photo, anchor="nw")
-            map_canvas.image = map_photo
+    try:
+        geolocator = geocoders.Nominatim(user_agent="your_app_name")
+        location = geolocator.geocode("Your search")
+        if location is not None:
+            map_widget.set_position(location.latitude, location.longitude)
+        else:
+            show_error_message("Location not found. Please try again with a different search query.")
+    except GeocoderUnavailable as e:
+        print(f"Error: {e}")
+        show_error_message("Failed to connect to the geocoding service. Please try again later.")
+    except requests.exceptions.ConnectionError as e:
+        print(f"Error: {e}")
+        show_error_message("Failed to connect to the geocoding service. Please try again later.")
 
 
-def get_map_data(lat, lon, distance, current_lat, current_lon):
-    url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lon}&zoom=13&size=600x400&key=AIzaSyBarXcsdnp61VQTyk3y71J2C_rn3hk_1oY&scale=2&path=color:0xff0000ff|weight:5|{get_encoded_polygon(lat, lon, distance)}&markers=color:red%7Clabel:Current%20Location%7C{current_lat},{current_lon}"
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.content
-    else:
-        print(f"Błąd pobierania mapy: {response.status_code}")
-        return None
+def show_error_message(message):
+    error_window = tk.Toplevel(root_tk)
+    error_window.title("Error")
+    error_label = tk.Label(error_window, text=message)
+    error_label.pack()
+    ok_button = tk.Button(error_window, text="OK", command=error_window.destroy)
+    ok_button.pack()
 
 
-def get_encoded_polygon(lat, lon, distance):
-    # Get the four corners of a square centered at the given latitude and longitude
-    # with a side length of 2*distance meters
-    corner1_lat, corner1_lon = lat + distance / 111120.0, lon - distance / 111320.0 * math.cos(math.radians(lat))
-    corner2_lat, corner2_lon = lat - distance / 111120.0, lon + distance / 111320.0 * math.cos(math.radians(lat))
-    corner3_lat, corner3_lon = corner2_lat, corner2_lon - 2 * distance / 111320.0 * math.cos(math.radians(lat))
-    corner4_lat, corner4_lon = corner1_lat, corner1_lon + 2 * distance / 111320.0 * math.cos(math.radians(lat))
+def open_second_window():
+    second_window = tk.Toplevel(root_tk)
+    second_window.geometry("300x200")
+    second_window.title("Search Radius")
 
-    # Encode the four corners as a polygon
-    polygon = "enc:"
-    polygon += f"{corner1_lat},{corner1_lon};"
-    polygon += f"{corner2_lat},{corner2_lon};"
-    polygon += f"{corner3_lat},{corner3_lon};"
-    polygon += f"{corner4_lat},{corner4_lon};"
-    polygon += "e"
+    # create slider
+    slider = tk.Scale(second_window, from_=0, to=100, orient=tk.HORIZONTAL, label="Search Radius (km)")
+    slider.pack()
 
-    return polygon
+    # create search button
+    search_button = tk.Button(second_window, text="Search", command=lambda: search_location_with_radius(slider.get()))
+    search_button.pack()
 
 
-def get_current_location():
-    g = Nominatim(user_agent="myGeocoder")
-    location = g.geocode("My location", exactly_one=True)
-    if location is not None:
-        lat, lon = location.latitude, location.longitude
-        return lat, lon
-    else:
-        return None
+def search_location_with_radius(radius):
+    try:
+        geolocator = geocoders.Nominatim(user_agent="your_app_name")
+        location = geolocator.geocode("Your search")
+        if location is not None:
+            map_widget.set_position(location.latitude, location.longitude)
+        else:
+            show_error_message("Location not found. Please try again with a different search query.")
+    except GeocoderUnavailable as e:
+        print(f"Error: {e}")
+        show_error_message("Failed to connect to the geocoding service. Please try again later.")
+    except requests.exceptions.ConnectionError as e:
+        print(f"Error: {e}")
+        show_error_message("Failed to connect to the geocoding service. Please try again later.")
 
 
-root = tk.Tk()
-root.title("Lost And Found")
+root_tk = tk.Tk()
+root_tk.geometry(f"{800}x{600}")
+root_tk.title("map_view_example.py")
 
-search_entry = ttk.Entry(root, width=40)
-search_entry.grid(row=0, column=0, padx=10, pady=10)
+# create map widget
+map_widget = TkinterMapView(root_tk, width=800, height=600, corner_radius=0)
+map_widget.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
 
-slider = ttk.Scale(root, from_=0, to=100, orient="horizontal")
-slider.grid(row=1, column=0, padx=10, pady=10)
-slider_label = ttk.Label(root, text=f"{slider.get()} km")
-slider_label.grid(row=1, column=2, padx=10, pady=10)
-slider.bind("<ButtonRelease-1>", lambda e: slider_label.config(text=f"{slider.get()} km"))
+# create search button
+search_button = tk.Button(root_tk, text="Search Location", command=open_second_window)
+search_button.pack()
 
-search_button = ttk.Button(root, text="Szukaj", command=search_location)
-search_button.grid(row=0, column=1, padx=10, pady=10)
-
-map_frame = ttk.Frame(root, width=600, height=400)
-map_frame.grid(row=2, column=0, columnspan=3, padx=10, pady=10)
-
-map_canvas = tk.Canvas(map_frame, width=600, height=400)
-map_canvas.pack(side="top", fill="both", expand=True)
-
-root.mainloop()
+root_tk.mainloop()
