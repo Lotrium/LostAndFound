@@ -1,51 +1,49 @@
 import tkintermapview as tkmap
+import pandas as pd
 import customtkinter as ctk
 
 markers = []
 paths = []
 
-
 def lookup():
     lookup_dialog = ctk.CTkInputDialog(text="Type in the address you want to look up:", title="My Map")
     map_widget.set_address(lookup_dialog.get_input())
 
-
 def zoom(value):
     map_widget.set_zoom(value)
-
 
 def marker():
     marker_dialog = ctk.CTkInputDialog(text="Type in the name of the marker:", title="My Map")
     current_pos = map_widget.get_position()
     markers.append(map_widget.set_marker(current_pos[0], current_pos[1], text=marker_dialog.get_input()))
 
-
 def add_marker_event(coords):
     marker_dialog = ctk.CTkInputDialog(text="Type in the name of the marker:", title="My Map")
     markers.append(map_widget.set_marker(coords[0], coords[1], text=marker_dialog.get_input()))
-
 
 def clear_marker():
     for marker in markers:
         marker.delete()
 
+def load_markers_from_excel(df):
+    for index, row in df.iterrows():
+        if index > 0:  # Skip the header row
+            markers.append(map_widget.set_marker(row[1] - 1, row[2] - 1, text=str(index)))
 
 def path():
     path_dialog = ctk.CTkInputDialog(
-                                     text="Type in two markers you want to create a path: (Ex: 1-2, 1-3, 2-3,...)",
-                                     title="My Map")
+        text="Type in two markers you want to create a path: (Ex: 1-2, 1-3, 2-3,...)",
+        title="My Map")
     chosen_markers = path_dialog.get_input().split("-")
     chosen_markers[0], chosen_markers[1] = int(chosen_markers[0]) - 1, int(chosen_markers[1]) - 1
     paths.append(
         map_widget.set_path([markers[chosen_markers[0]].position, markers[chosen_markers[1]].position], color="green"))
 
-
 def change_mode():
-    if switch.get() == 1:
+    if switch.get() == "D":
         ctk.set_appearance_mode("dark")
     else:
         ctk.set_appearance_mode("light")
-
 
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("green")
@@ -60,6 +58,9 @@ map_widget.set_tile_server("https://mt0.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z
 map_widget.set_zoom(8)
 map_widget.set_address("warsaw")
 map_widget.pack(fill="both", expand=True)
+
+df = pd.read_excel("budynki.xlsx", engine="openpyxl", header=0)
+load_markers_from_excel(df)
 
 map_widget.add_right_click_menu_command(label="Add marker", command=add_marker_event, pass_coords=True)
 
@@ -82,7 +83,7 @@ clear_marker_btn.grid(row=0, column=3, padx=10)
 path_btn = ctk.CTkButton(master=frame, text="Set path", command=path, width=20, font=("Segoe UI", 10))
 path_btn.grid(row=0, column=4, padx=10)
 
-switch = ctk.CTkSwitch(master=frame, text="Dark Mode", command=change_mode)
+switch = ctk.CTkSwitch(master=frame, text="Dark Mode", command=change_mode, variable=ctk.StringVar(value="L"))
 switch.grid(row=0, column=5, padx=10)
 
 exit_btn = ctk.CTkButton(master=frame, text="Exit", command=root.destroy, width=20, font=("Segoe UI", 10))
